@@ -1,0 +1,108 @@
+"""
+Created on Thu Apr 17 19:02:56 2025
+"""
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+Vol_data_Crude = pd.read_csv("crude vol Smile monitor.csv", index_col="Date", parse_dates=True)
+
+
+df_COF5 = pd.concat([Vol_data_Crude.iloc[:, [0]], Vol_data_Crude.iloc[:, 1:8]], axis=1)
+df_COG5 = pd.concat([Vol_data_Crude.iloc[:, [0]], Vol_data_Crude.iloc[:, 9:16]], axis=1)
+df_COH5 = pd.concat([Vol_data_Crude.iloc[:, [0]], Vol_data_Crude.iloc[:, 17:24]], axis=1)
+
+df_CLF5 = pd.concat([Vol_data_Crude.iloc[:, [0]], Vol_data_Crude.iloc[:, 25:32]], axis=1)
+df_CLG5 = pd.concat([Vol_data_Crude.iloc[:, [0]], Vol_data_Crude.iloc[:, 33:40]], axis=1)
+df_CLH5 = pd.concat([Vol_data_Crude.iloc[:, [0]], Vol_data_Crude.iloc[:, 41:48]], axis=1)
+
+
+def clean_smile_df(df):
+    df.columns = df.iloc[0]
+    df = df[1:]
+    df = df.dropna()
+    return df
+
+df_COF5 = clean_smile_df(df_COF5)
+df_COG5 = clean_smile_df(df_COG5)
+df_COH5 = clean_smile_df(df_COH5)
+df_CLF5 = clean_smile_df(df_CLF5)
+df_CLG5 = clean_smile_df(df_CLG5)
+df_CLH5 = clean_smile_df(df_CLH5)
+
+
+def plot_smile(df, ticker_name):
+    plt.figure(figsize=(10, 6))
+    
+    for date, row in df.iterrows():
+        row = pd.to_numeric(row, errors='coerce')
+        centered_row = row - row['50 DP']
+        
+        plt.plot(df.columns, centered_row.values, alpha=0.2)
+
+    plt.title(f'Centered Volatility Smile for {ticker_name} (relative to 50 Delta)')
+    plt.xlabel('Delta')
+    plt.ylabel('Vol - 50 Delta (bps)')
+    plt.axhline(0, color='black', linestyle='--', linewidth=1)  # horizontal line at 0
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.legend(fontsize='small', loc='upper right', ncol=2)
+    plt.show()
+
+    
+plot_smile(df_COF5, "COF5")
+plot_smile(df_COG5, "COG5")
+plot_smile(df_COH5, "COH5")
+plot_smile(df_CLF5, "CLF5")
+plot_smile(df_CLG5, "CLG5")
+plot_smile(df_CLH5, "CLH5")
+
+#%% Get average values across delta surface
+
+
+def get_difference(df):
+    df.columns = df.columns.astype(str)
+    df = df.apply(pd.to_numeric, errors='coerce')
+    df = df.subtract(df['50 DP'], axis=0)
+    return df
+    
+df_COF5_centered = get_difference(df_COF5)
+df_COG5_centered = get_difference(df_COG5)
+df_COH5_centered = get_difference(df_COH5)
+
+df_CLF5_centered = get_difference(df_CLF5)
+df_CLG5_centered = get_difference(df_CLG5)
+df_CLH5_centered = get_difference(df_CLH5)
+
+
+ticker_dfs = {
+    'COF5': df_COF5_centered,
+    'COG5': df_COG5_centered,
+    'COH5': df_COH5_centered,
+    'CLF5': df_CLF5_centered,
+    'CLG5': df_CLG5_centered,
+    'CLH5': df_CLH5_centered
+}
+
+colors = {
+    'COF5': '#032cfc',
+    'COG5': '#7288fc',
+    'COH5': '#c5cefa',
+    'CLF5': '#ff0000',
+    'CLG5': '#fc7272',
+    'CLH5': '#fcc0c0'
+}
+
+plt.figure(figsize=(12, 6))
+
+for ticker, df in ticker_dfs.items():
+    mean_smile = df.mean()
+    plt.plot(mean_smile.index, mean_smile.values, label=ticker, color=colors[ticker], linewidth=3)
+
+plt.title("Mean Centered Volatility Smiles by Ticker")
+plt.xlabel("Delta")
+plt.ylabel("Mean Vol - 50 DP (bps)")
+plt.axhline(0, color='black', linestyle='--', linewidth=0.5)
+plt.xticks(rotation=45)
+plt.legend()
+plt.show()                                  
